@@ -8,11 +8,16 @@ export default function CustomerLogin() {
   const [totalSoFar, setTotalSoFar] = useState<number | ''>('');
   const [billData, setBillData] = useState<any>(null);
 
+  // 1. Move the API URL to the top level of the component
+  // This ensures it's available everywhere and easy to debug
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/billing/calculate', {
-        method: 'POST',
+      // 2. Use the dynamic URL
+      const response = await fetch(`${API_BASE_URL}/billing/calculate`, {
+        method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lastMonth: Number(lastMonth),
@@ -29,7 +34,8 @@ export default function CustomerLogin() {
       const data = await response.json();
       setBillData(data); 
     } catch (error) {
-      alert("Could not connect to the billing server.");
+      console.error("Fetch error:", error);
+      alert("Could not connect to the billing server. Please check your internet or if the server is awake.");
     }
   };
 
@@ -47,37 +53,36 @@ export default function CustomerLogin() {
     doc.setTextColor(100);
     doc.text("Official Invoice Receipt", 105, 30, { align: "center" });
 
-autoTable(doc, {
-  startY: 50,
-  head: [['Description', 'Value']],
-  body: [
-    ['Usage for this Month', `${billData.presentMonthUnits} Litres`],
-    ['Rate Per Litre', `BDT ${Number(billData.rate).toFixed(2)}`],
-    ['Base Subtotal', `BDT ${Number(billData.subtotal).toFixed(2)}`],
-    ['VAT Amount', `BDT ${Number(billData.vatAmount).toFixed(2)}`],
-    ['Service Charge', `BDT ${Number(billData.serviceCharge).toFixed(2)}`],
-    ['TOTAL PAYABLE', `BDT ${Number(billData.total).toFixed(2)}`],
-  ],
-  headStyles: {
-    fillColor: navyBlue,
-    fontSize: 12,
-  },
-  columnStyles: {
-    0: { halign: 'left' },  // Description column stays left
-    1: { halign: 'right' }  // Value column moves to the far right
-  },
-  // This ensures the header text also follows the column alignment
-  didParseCell: (data) => {
-    if (data.section === 'head' && data.column.index === 1) {
-      data.cell.styles.halign = 'right';
-    }
-  },
-  theme: 'striped',
-  styles: {
-    fontSize: 11,
-    cellPadding: 5,
-  }
-});
+    autoTable(doc, {
+      startY: 50,
+      head: [['Description', 'Value']],
+      body: [
+        ['Usage for this Month', `${billData.presentMonthUnits} Litres`],
+        ['Rate Per Litre', `BDT ${Number(billData.rate).toFixed(2)}`],
+        ['Base Subtotal', `BDT ${Number(billData.subtotal).toFixed(2)}`],
+        [`VAT (${billData.vatPercentage}%)`, `BDT ${Number(billData.vatAmount).toFixed(2)}`], // Dynamic VAT label
+        ['Service Charge', `BDT ${Number(billData.serviceCharge).toFixed(2)}`],
+        ['TOTAL PAYABLE', `BDT ${Number(billData.total).toFixed(2)}`],
+      ],
+      headStyles: {
+        fillColor: navyBlue,
+        fontSize: 12,
+      },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'right' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'head' && data.column.index === 1) {
+          data.cell.styles.halign = 'right';
+        }
+      },
+      theme: 'striped',
+      styles: {
+        fontSize: 11,
+        cellPadding: 5,
+      }
+    });
 
     doc.save(`GasBill_Receipt.pdf`);
   };
@@ -134,7 +139,6 @@ autoTable(doc, {
                     <span>Current Usage</span>
                     <span>{billData.presentMonthUnits} L</span>
                   </div>
-                  {/* New Rate Display */}
                   <div className="flex justify-between text-slate-600 px-2 text-sm italic">
                     <span>Applied Rate</span>
                     <span>৳{Number(billData.rate).toFixed(2)} / L</span>
@@ -144,7 +148,7 @@ autoTable(doc, {
                     <span>৳{Number(billData.subtotal).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 px-2">
-                    <span>VAT</span>
+                    <span>VAT ({billData.vatPercentage}%)</span>
                     <span>৳{Number(billData.vatAmount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 px-2">
